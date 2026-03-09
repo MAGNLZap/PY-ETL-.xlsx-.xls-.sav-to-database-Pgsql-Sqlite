@@ -1,0 +1,46 @@
+# Entornos Virtuales
+venv/
+.venv/
+env/
+.env_folder/
+
+# Archivos de Entorno y Variables Seguras
+# ¡MUY IMPORTANTE!: Nunca subas contraseñas
+.env
+*.env
+.env.local
+
+# Bases de datos locales
+*.db
+*.sqlite
+*.sqlite3
+pruebas.db
+
+# Archivos de log
+*.log
+etl_proceso.log
+
+# Archivos de datos subidos o temporales (para no llenar Git de Excels o SAVs pesados)
+*.xlsx
+*.xls
+*.sav
+*.rar
+*.csv
+/data/
+/temp/
+
+# Archivos compilados de Python (Caché)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Jupyter Notebook (en caso de que hagan experimentación después)
+.ipynb_checkpoints
+
+# Carpetas de IDEs o Editores de texto
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
