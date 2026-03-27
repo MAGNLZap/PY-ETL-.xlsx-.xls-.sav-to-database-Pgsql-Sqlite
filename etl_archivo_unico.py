@@ -32,19 +32,11 @@ def clean_columns(columns):
 
 def format_dataframe(df):
     """
-    Convierte inteligentemente los tipos de datos para prevenir decimales espurios.
-    Pandas convienrte las columnas a float64 (ej: 63791.0) si existen valores nulos.
-    convert_dtypes() transforma estas columnas a Int64 (nativos) logrando que 
-    se conviertan a string como '63791' en lugar de '63791.0'.
+    Convierte inteligentemente a los tipos de datos más adecuados de pandas (nativos).
+    No convierte a string, para que la BD infiera y conserve los tipos correctos
+    (ej. Int64 en lugar de float, o fechas nativas en vez de texto).
     """
-    df = df.convert_dtypes()
-    df = df.astype(str)
-
-    # Al pasar a string, los nulos nativos se transforman en las palabras "nan" o "<NA>"
-    # Reemplazamos estas palabras en el DataFrame por texto vacío para la base de datos
-    df = df.replace(['nan', '<NA>', 'None'], '')
-
-    return df
+    return df.convert_dtypes()
 
 
 def get_temp_dir():
@@ -58,9 +50,46 @@ def get_temp_dir():
 # Crear tabla dinámica
 # -----------------------------
 
-def create_table_postgres(conn_string, table, columns):
+def map_dtype_to_postgres(dtype):
+    dt = str(dtype).lower()
+    if 'int' in dt:
+        return 'BIGINT'
+    elif 'float' in dt:
+        return 'DOUBLE PRECISION'
+    elif 'bool' in dt:
+        return 'BOOLEAN'
+    elif 'datetime' in dt:
+        return 'TIMESTAMP'
+    elif 'date' in dt:
+        return 'DATE'
+    else:
+        return 'TEXT'
 
-    cols_sql = ",\n".join([f'"{c}" TEXT' for c in columns])
+
+def map_dtype_to_sqlite(dtype):
+    dt = str(dtype).lower()
+    if 'int' in dt:
+        return 'INTEGER'
+    elif 'float' in dt:
+        return 'REAL'
+    elif 'bool' in dt:
+        return 'INTEGER'
+    elif 'datetime' in dt:
+        return 'TEXT'
+    elif 'date' in dt:
+        return 'TEXT'
+    else:
+        return 'TEXT'
+
+
+def create_table_postgres(conn_string, table, df):
+
+    cols_sql_list = []
+    for col, dtype in df.dtypes.items():
+        type_sql = map_dtype_to_postgres(dtype)
+        cols_sql_list.append(f'"{col}" {type_sql}')
+
+    cols_sql = ",\n        ".join(cols_sql_list)
 
     sql = f"""
     DROP TABLE IF EXISTS {table};
@@ -75,15 +104,20 @@ def create_table_postgres(conn_string, table, columns):
             cur.execute(sql)
         conn.commit()
 
-    logging.info("Tabla PostgreSQL creada correctamente")
+    logging.info("Tabla PostgreSQL creada correctamente con tipos inferidos")
 
 
-def create_table_sqlite(db_path, table, columns):
+def create_table_sqlite(db_path, table, df):
 
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
 
-    cols_sql = ", ".join([f'"{c}" TEXT' for c in columns])
+    cols_sql_list = []
+    for col, dtype in df.dtypes.items():
+        type_sql = map_dtype_to_sqlite(dtype)
+        cols_sql_list.append(f'"{col}" {type_sql}')
+
+    cols_sql = ", ".join(cols_sql_list)
 
     cur.execute(f"DROP TABLE IF EXISTS {table}")
     cur.execute(f"CREATE TABLE {table} ({cols_sql})")
@@ -91,7 +125,7 @@ def create_table_sqlite(db_path, table, columns):
     conn.commit()
     conn.close()
 
-    logging.info("Tabla SQLite creada correctamente")
+    logging.info("Tabla SQLite creada correctamente con tipos inferidos")
 
 
 # -----------------------------
@@ -163,7 +197,7 @@ def read_file_chunks(file_path, chunk_size):
 
     elif ext.endswith(".xlsx") or ext.endswith(".xls"):
 
-        df = pd.read_excel(file_path, dtype=str)
+        df = pd.read_excel(file_path)
         for i in range(0, len(df), chunk_size):
             yield df.iloc[i:i+chunk_size]
 
@@ -185,12 +219,14 @@ def run_etl(file_path, table, db_mode, conn_string, sqlite_path, chunk_size=5000
 
     first_chunk.columns = clean_columns(first_chunk.columns)
 
-    # Crear tabla según DB
+    first_chunk_formatted = format_dataframe(first_chunk)
+
+    # Crear tabla según DB y tipos del chunk
     if db_mode == "postgres":
-        create_table_postgres(conn_string, table, first_chunk.columns)
+        create_table_postgres(conn_string, table, first_chunk_formatted)
 
     else:
-        create_table_sqlite(sqlite_path, table, first_chunk.columns)
+        create_table_sqlite(sqlite_path, table, first_chunk_formatted)
 
     temp_dir = get_temp_dir()
 
@@ -205,7 +241,7 @@ def run_etl(file_path, table, db_mode, conn_string, sqlite_path, chunk_size=5000
 
     idx = 0
 
-    tasks.append((format_dataframe(first_chunk), table, db_mode,
+    tasks.append((first_chunk_formatted, table, db_mode,
                  conn_string, sqlite_path, temp_dir, idx))
     idx += 1
 

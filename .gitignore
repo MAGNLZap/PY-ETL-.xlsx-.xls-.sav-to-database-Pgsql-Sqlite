@@ -29,6 +29,14 @@ etl_proceso.log
 /data/
 /temp/
 
+# Directorios de la ETL multiproposito (omite archivos de datos pesados pero conserva carpetas)
+etl_multiproposito/data/input/*
+!etl_multiproposito/data/input/.gitkeep
+etl_multiproposito/data/processed/*
+!etl_multiproposito/data/processed/.gitkeep
+etl_multiproposito/data/error/*
+!etl_multiproposito/data/error/.gitkeep
+
 # Archivos compilados de Python (Caché)
 __pycache__/
 *.py[cod]
