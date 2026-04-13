@@ -197,7 +197,10 @@ def read_file_chunks(file_path, chunk_size):
 
     elif ext.endswith(".xlsx") or ext.endswith(".xls"):
 
-        df = pd.read_excel(file_path)
+        # Usar dtype=object evita que Pandas intente adivinar el tipo y convierta
+        # secuencias de texto numérico (ej. "010102") en enteros, respetando el 
+        # tipo configurado originalmente en Excel.
+        df = pd.read_excel(file_path, dtype=object)
         for i in range(0, len(df), chunk_size):
             yield df.iloc[i:i+chunk_size]
 
