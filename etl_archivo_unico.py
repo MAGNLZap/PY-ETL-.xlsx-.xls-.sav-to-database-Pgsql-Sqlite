@@ -185,13 +185,13 @@ def process_chunk(args):
 # Lectura dinámica de archivo
 # -----------------------------
 
-def read_file_chunks(file_path, chunk_size):
+def read_file_chunks(file_path, chunk_size, convert_cat=False):
 
     ext = file_path.lower()
 
     if ext.endswith(".sav"):
 
-        df = pd.read_spss(file_path)
+        df = pd.read_spss(file_path, convert_categoricals=convert_cat)
         for i in range(0, len(df), chunk_size):
             yield df.iloc[i:i+chunk_size]
 
@@ -212,11 +212,11 @@ def read_file_chunks(file_path, chunk_size):
 # ETL principal
 # -----------------------------
 
-def run_etl(file_path, table, db_mode, conn_string, sqlite_path, chunk_size=50000):
+def run_etl(file_path, table, db_mode, conn_string, sqlite_path, chunk_size=50000, convert_cat=False):
 
     logging.info(f"Leyendo archivo: {file_path}")
 
-    chunks = read_file_chunks(file_path, chunk_size)
+    chunks = read_file_chunks(file_path, chunk_size, convert_cat=convert_cat)
 
     first_chunk = next(chunks)
 
@@ -279,6 +279,8 @@ if __name__ == "__main__":
     load_dotenv()
 
     DB_MODE = os.getenv("DB_MODE", "sqlite").lower()
+    # Convertir a booleano real manejando cualquier combinación de mayúsculas/minúsculas
+    CONVERT_CAT = os.getenv("CONVERT_CAT", "FALSE").upper() == "TRUE"
 
     FILE_PATH = os.getenv("ARCHIVO_EXCEL")
 
@@ -301,7 +303,8 @@ if __name__ == "__main__":
         TABLE,
         DB_MODE,
         conn_string,
-        SQLITE_PATH
+        SQLITE_PATH,
+        convert_cat=CONVERT_CAT
     )
 
     end = time.time()
