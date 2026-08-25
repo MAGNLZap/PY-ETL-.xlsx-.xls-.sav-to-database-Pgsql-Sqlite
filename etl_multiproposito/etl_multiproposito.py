@@ -95,7 +95,7 @@ def create_table_postgres(conn_string, table, df):
     cols_sql = ",\n        ".join(cols_sql_list)
 
     sql = f"""
-    CREATE UNLOGGED TABLE IF NOT EXISTS {table} (
+    CREATE TABLE IF NOT EXISTS {table} (
         {cols_sql}
     );
     """
