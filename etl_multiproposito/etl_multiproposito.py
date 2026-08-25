@@ -108,6 +108,18 @@ def create_table_postgres(conn_string, table, df):
     logging.info("Schema validado en PostgreSQL")
 
 
+def convert_to_logged(conn_string, table):
+
+    sql = f"ALTER TABLE {table} SET LOGGED;"
+
+    with psycopg.connect(conn_string) as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+        conn.commit()
+
+    logging.info(f"Tabla '{table}' convertida a LOGGED (segura ante crashes)")
+
+
 def create_table_sqlite(db_path, table, df):
 
     conn = sqlite3.connect(db_path)
@@ -267,6 +279,9 @@ def run_etl(file_path, table, db_mode, conn_string, sqlite_path, chunk_size=5000
 
     total_rows = sum(results)
     logging.info(f"Filas cargadas desde {base_name}: {total_rows}")
+
+    if db_mode == "postgres":
+        convert_to_logged(conn_string, table)
 
 
 # -----------------------------
